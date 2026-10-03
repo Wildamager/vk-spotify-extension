@@ -1,101 +1,93 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <style type="text/css">
-      body {
-        background-color: black;
-        width: 460px;
-        height: 110px;
-        margin: 0;
-        border-radius: 5px;
-      }
-      .middle{
-        background-color: black;
-        float: left;
-        width: 30%;
-      }
-      .link-header-title{
-        background-color: rgba(61, 61, 61, 0.877);
-        width: 70%;
-        float: right;
-        height: 50%;
-        border-radius: 5px;
-      }
-      .buttons-link{
-        background-color: black;
-        height: 50%;
-        width: 70%;
-        float: right;
-      }
-      .link-opyion-row-img{
-        float: left;
-        margin: 0.5rem 0.5rem 0.5rem;
-      }
-      h1 {
-        color: #fff;
-        font-size: 13px;
-        font-weight: 600;
-        margin: 0.5rem 0.5rem 0.5rem;
-      }
-      h2 {
-        color: #fff;
-        font-size: 11px;
-        font-weight: 400;
-        margin: 0.5rem 0.5rem 0.5rem;
-      }
-      img{
-        display: block;
-        margin: 0 auto;
-      }
-      .link-conteiner{
-        background-color:black;
-        padding:  5px 5px 5px 5px;
-        width: 450px;
-        height: 100px;
-      }
-      .button {
-        float: right;
-        height: 25px;
-        width: 40px;
-        background-color: #4CAF50; /* Green */
-        border: none;
-        border-radius: 5px;
-        color: white;
-        text-decoration: none;
-        font-size: 10px;
-        margin: 13px 70px 10px 2px;
-        -webkit-transition-duration: 0.4s; /* Safari */
-        transition-duration: 0.4s;
-        cursor: pointer;
-      }
-      .button1 {
-        background-color: black; 
-        color: #4CAF50; 
-        border: 2px solid #4CAF50;
-      }
-      .button1:hover {
-        background-color: #4CAF50;
-        color: white;
-      }
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VK → Spotify</title>
+    <style>
+        body {
+            width: 360px;
+            height: 110px;
+            margin: 0;
+            background-color: #121212;
+            border-radius: 5px;
+            font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+            color: #fff;
+        }
+        .popup {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+        }
+        .cover {
+            width: 80px;
+            height: 80px;
+            border-radius: 6px;
+            object-fit: cover;
+            background-color: #282828;
+            flex-shrink: 0;
+        }
+        .meta {
+            min-width: 0;
+            flex: 1;
+        }
+        h1 {
+            margin: 0 0 4px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        h2 {
+            margin: 0 0 10px;
+            font-size: 11px;
+            font-weight: 400;
+            color: #b3b3b3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .spotify-mark {
+            width: 22px;
+            height: 22px;
+        }
+        button {
+            background-color: #1db954;
+            border: none;
+            border-radius: 5px;
+            color: #000;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 14px;
+            cursor: pointer;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        button:hover:enabled {
+            background-color: #1ed760;
+        }
     </style>
+</head>
+<body>
+    <div class="popup">
+        <img class="cover" id="Image_of_albom" src="Icons/spotify-48.png" alt="Album cover">
+        <div class="meta">
+            <h1 id="name_of_track">No track selected</h1>
+            <h2 id="artist_of_track">Right-click a track on VK</h2>
+            <div class="actions">
+                <img class="spotify-mark" src="Icons/spotify-48.png" alt="Spotify">
+                <button id="save" disabled>Save</button>
+            </div>
+        </div>
+    </div>
     <script src="music-script.js"></script>
-  </head>
-  <body class="info_of_spotify">
-      <div class="link-conteiner">
-        <div class="middle">
-          <div class="link-cover">
-            <img class="obloshka" id="Image_of_albom" src="Icons\waiting-spinning.gif" width="100" height="100">
-          </div>
-        </div>
-        <div class="link-header-title">
-          <h1 id="name_of_track">Track not yet</h1>
-          <h2 id="artist_of_track">selected</h2>
-        </div>
-        <div class="buttons-link">
-          <img class="link-opyion-row-img" width="100" height="30" src="https://st.toneden.io/production/images/link-services/spotify.png">
-          <button id="save" class="button button1">Save</button>
-        </div>
-      </div> 
-  </body>
-
+</body>
 </html>

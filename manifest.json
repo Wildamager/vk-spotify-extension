@@ -1,32 +1,42 @@
 {
-    "name": "VK&SPOTIFY",
-    "description": "Add music from VK to SPOTIFY",
-    "version": "1.0",
-    "manifest_version": 2,
-    "icons":{
+  "name": "VK → Spotify",
+  "version": "1.1.0",
+  "description": "Right-click a track on VK, find it in Spotify and save it to your library.",
+  "manifest_version": 3,
+  "minimum_chrome_version": "102",
+  "icons": {
+    "16": "Icons/spotify-16.png",
+    "48": "Icons/spotify-48.png",
+    "128": "Icons/spotify-128.png"
+  },
+  "action": {
+    "default_icon": {
       "16": "Icons/spotify-16.png",
-      "48": "Icons/spotify-48.png",
-      "128": "Icons/spotify-128.png"
+      "48": "Icons/spotify-48.png"
     },
-    "browser_action":{
-      "default_icon": {
-        "16":"Icons/spotify-16.png",
-        "48":"Icons/spotify-48.png"},
-      "default_title":  "Search music in Spotify",
-      "default_popup":"SignIn.html"
-    },
-    "content_scripts": [{
+    "default_title": "Search music in Spotify",
+    "default_popup": "SignIn.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
       "matches": ["*://vk.com/*"],
       "js": ["content.js"],
-      "all_frames": true,
-      "match_about_blank": true
-    }],
-    "permissions":["activeTab",
-                  "contextMenus",
-                  "identity"],
-    "background": {"service_worker": "background.js",
-                    "type":"module"},
-    "web_accessible_resources": [
-                                "/oauth2/*"
-                                ]     
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["contextMenus", "identity", "storage"],
+  "host_permissions": [
+    "https://api.spotify.com/*",
+    "https://accounts.spotify.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["Icons/*"],
+      "matches": ["*://vk.com/*"]
+    }
+  ]
 }

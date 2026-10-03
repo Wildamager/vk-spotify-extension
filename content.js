@@ -1,17 +1,35 @@
-let error;
-document.addEventListener("contextmenu", function(event){
-    let track_elem=document.activeElement;
-    artist_elem=track_elem.querySelectorAll("a.artist_link");
-    if( artist_elem.length == 0 ){
-        artist_elem=track_elem.querySelectorAll(".audio_row__performers>a");
+const TRACK_SELECTORS = {
+    artist: ['a.artist_link', '.audio_row__performers > a'],
+    title: ['a.audio_row__title_inner', '.audio_row__title']
+};
+
+function pickText(root, selectors) {
+    for (const selector of selectors) {
+        const element = root.querySelector(selector);
+        if (element?.textContent.trim()) {
+            return element.textContent.trim();
+        }
     }
-    name_of_track_elem=track_elem.querySelectorAll("a.audio_row__title_inner ");
-    music_info=[];
-    music_info.push(artist_elem[0].textContent); 
-    music_info.push(name_of_track_elem[0].textContent);
+    return null;
+}
 
-    chrome.runtime.sendMessage({done: music_info});
+// VK renders audio rows lazily and changes their markup over time, so the row is
+// resolved from the element the user actually right-clicked.
+function extractTrack(event) {
+    const row = event.target.closest('.audio_row, .track__row, [id^="audio_row"]') ?? event.target;
 
+    const artist = pickText(row, TRACK_SELECTORS.artist);
+    const title = pickText(row, TRACK_SELECTORS.title);
+
+    if (!artist || !title) return null;
+    return { artist, title };
+}
+
+document.addEventListener('contextmenu', (event) => {
+    const track = extractTrack(event);
+    if (!track) return;
+
+    chrome.runtime.sendMessage({ type: 'track-selected', track }).catch(() => {
+        // Extension context invalidated after a reload - nothing to recover here.
+    });
 }, true);
-
-    

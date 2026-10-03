@@ -1,137 +1,160 @@
-let music=[];
+import { SPOTIFY_CLIENT_ID, SPOTIFY_REDIRECT_URI, SPOTIFY_SCOPE } from './config.js';
 
-chrome.runtime.onMessage.addListener(function(request,senger,sendResponse) {
-    music=request.done;
-});
+const MENU_ID = 'spotify-link';
+const TOKEN_TTL_MS = 60 * 60 * 1000; // Spotify access tokens live 1 hour
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
-        id:"Spotify-link",
-        title:"Искать в Spotify"
+        id: MENU_ID,
+        title: 'Искать в Spotify'
     });
-})
-
-const CLIENT_ID = encodeURIComponent('0333bde7cf744533976bdbd69d61aa75');
-const RESPONSE_TYPE = encodeURIComponent('token');
-const REDIRECT_URI = encodeURIComponent('https://pobbbfjbnhjfkmnjddefcchncbofdfeh.chromiumapp.org/');
-const SCOPE = encodeURIComponent('user-read-email, user-read-private, user-library-modify');
-const SHOW_DIALOG = encodeURIComponent('true');
-let STATE = '';
-let ACCESS_TOKEN = '';
-let user_signed_in = false;
-  
-function create_spotify_endpoint() {
-    STATE = encodeURIComponent('meet' + Math.random().toString(36).substring(2, 15));
-  
-    let oauth2_url =
-          `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=${RESPONSE_TYPE}&redirect_uri=${REDIRECT_URI}&state=${STATE}&scope=${SCOPE}&show_dialog=${SHOW_DIALOG}`;
-  
-    return oauth2_url;
-}
-  
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.message === 'login') {
-        if (user_signed_in) {
-            console.log("User is already signed in.");
-        } else {
-            chrome.identity.launchWebAuthFlow({
-                url: create_spotify_endpoint(),
-                interactive: true
-                }, function (redirect_url) {
-                if (chrome.runtime.lastError) {
-                    sendResponse({ message: 'fail' });
-                } else {
-                    if (redirect_url.includes('callback?error=access_denied')) {
-                        sendResponse({ message: 'fail' });
-                    } else {
-                        ACCESS_TOKEN = redirect_url.substring(redirect_url.indexOf('access_token=') + 13);
-                        ACCESS_TOKEN = ACCESS_TOKEN.substring(0, ACCESS_TOKEN.indexOf('&'));
-                        let state = redirect_url.substring(redirect_url.indexOf('state=') + 6);
-                
-                        if (state === STATE) {
-                            console.log("SUCCESS")
-                            user_signed_in = true;
-                
-                            setTimeout(() => {
-                                ACCESS_TOKEN = '';
-                                user_signed_in = false;
-                            }, 3600000);
-                
-                            chrome.browserAction.setPopup({ popup: 'popup.html' }, () => {
-                                sendResponse({ message: 'success' });
-                            });
-                        } else {
-                            sendResponse({ message: 'fail' });
-                        }
-                    }
-                }
-            });
-        }
-        
-    return true;
-    } else if (request.message === 'logout') {
-        user_signed_in = false;
-        chrome.browserAction.setPopup({ popup: 'popup.html' }, () => {
-            sendResponse({ message: 'success' });
-        });
-  
-        return true;
-    }
 });
 
-    
+// --- token storage ---------------------------------------------------------
+// The MV3 service worker is terminated aggressively, so the access token has to
+// live in session storage instead of a module-level variable.
 
-    
-
-function search_music(ACCESS_TOKEN,music){
-    let q=music[1].replace(' ','+')
-    fetch(`https://api.spotify.com/v1/search?q=${q}?&type=track&limit=5&access_token=${ACCESS_TOKEN}`).then(function(response){
-        response.json().then(function(data) {
-            try{
-                let url=data.tracks.items[0].album.images[1].url;
-            let id_music=data.tracks.items[0].id;
-            test_pars_json(ACCESS_TOKEN,id_music,data,music,url);
-            }
-            catch{
-                console.log('please, reload the page or extension')
-            }
-            
-        });
-        }).catch(function(error) {
-            console.log('Fetch Error:', error);
-        });
+async function getSession() {
+    const stored = await chrome.storage.session.get('session');
+    return stored.session ?? null;
 }
 
-function save_music(ACCESS_TOKEN,id_music){
-    let response=fetch(`https://api.spotify.com/v1/me/tracks?ids=${id_music}`,{
-        method: 'PUT',
-        headers:{
-            Authorization: 'Bearer '+ACCESS_TOKEN
-        }
-    })
-    console.log(response)
+async function setSession(session) {
+    await chrome.storage.session.set({ session });
 }
 
-
-function msg(){
-    console.log(music);
+async function clearSession() {
+    await chrome.storage.session.remove('session');
 }
 
-function test_pars_json(ACCESS_TOKEN,id_music,data,music,url){
-    console.log(data['tracks']);
-        chrome.runtime.onMessage.addListener(function(msg) {
-            if (msg.joke === "Lets working")
-                chrome.runtime.sendMessage({done: music, info: url});
-            if (msg.joke === "Lets save")
-                save_music(ACCESS_TOKEN,id_music)
-        });
-}
-
-chrome.contextMenus.onClicked.addListener(function(info,tab){
-    if (info.menuItemId == "Spotify-link") {
-        msg();
-        search_music(ACCESS_TOKEN,music)
+async function getAccessToken() {
+    const session = await getSession();
+    if (!session) return null;
+    if (Date.now() > session.expiresAt) {
+        await clearSession();
+        return null;
     }
-})
+    return session.accessToken;
+}
 
-    
+// --- OAuth -----------------------------------------------------------------
+
+function buildAuthorizeUrl(state) {
+    const params = new URLSearchParams({
+        client_id: SPOTIFY_CLIENT_ID,
+        response_type: 'token',
+        redirect_uri: SPOTIFY_REDIRECT_URI,
+        state: state,
+        scope: SPOTIFY_SCOPE,
+        show_dialog: 'true'
+    });
+    return `https://accounts.spotify.com/authorize?${params.toString()}`;
+}
+
+function login() {
+    const state = crypto.randomUUID();
+    const url = buildAuthorizeUrl(state);
+
+    chrome.identity.launchWebAuthFlow({ url, interactive: true }, async (redirectUrl) => {
+        if (chrome.runtime.lastError || !redirectUrl) return;
+        if (redirectUrl.includes('error=')) return;
+
+        const hash = new URL(redirectUrl).hash.replace(/^#/, '');
+        const params = new URLSearchParams(hash);
+
+        // Reject responses that do not belong to this authorization request.
+        if (params.get('state') !== state) return;
+        const accessToken = params.get('access_token');
+        if (!accessToken) return;
+
+        await setSession({
+            accessToken,
+            expiresAt: Date.now() + TOKEN_TTL_MS
+        });
+        await chrome.action.setPopup({ popup: 'popup.html' });
+    });
+}
+
+function logout() {
+    clearSession().then(() => chrome.action.setPopup({ popup: 'SignIn.html' }));
+}
+
+// --- Spotify Web API -------------------------------------------------------
+
+async function searchTrack(query) {
+    const accessToken = await getAccessToken();
+    if (!accessToken) return null;
+
+    const params = new URLSearchParams({ q: query, type: 'track', limit: '5' });
+    const response = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!response.ok) throw new Error(`Spotify search failed: ${response.status}`);
+
+    const data = await response.json();
+    const track = data.tracks?.items?.[0];
+    if (!track) return null;
+
+    return {
+        id: track.id,
+        name: track.name,
+        artists: track.artists.map((artist) => artist.name).join(', '),
+        coverUrl: track.album.images[1]?.url ?? track.album.images[0]?.url ?? null
+    };
+}
+
+async function saveTrack(trackId) {
+    const accessToken = await getAccessToken();
+    if (!accessToken) return false;
+
+    const response = await fetch(`https://api.spotify.com/v1/me/tracks?ids=${trackId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    return response.ok;
+}
+
+// --- messaging -------------------------------------------------------------
+
+let lastTrack = null; // artist + title picked from the VK page
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'track-selected') {
+        lastTrack = request.track;
+        return false;
+    }
+
+    if (request.type === 'login') {
+        login();
+        sendResponse({ status: 'started' });
+        return false;
+    }
+
+    if (request.type === 'logout') {
+        logout();
+        sendResponse({ status: 'ok' });
+        return false;
+    }
+
+    if (request.type === 'search') {
+        const query = request.query ?? (lastTrack ? `${lastTrack.artist} ${lastTrack.title}` : null);
+        searchTrack(query)
+            .then((track) => sendResponse({ track }))
+            .catch(() => sendResponse({ track: null }));
+        return true; // keep the message channel open for the async response
+    }
+
+    if (request.type === 'save') {
+        saveTrack(request.trackId)
+            .then((ok) => sendResponse({ saved: ok }))
+            .catch(() => sendResponse({ saved: false }));
+        return true;
+    }
+
+    return false;
+});
+
+chrome.contextMenus.onClicked.addListener((info) => {
+    if (info.menuItemId !== MENU_ID) return;
+    chrome.tabs.sendMessage(info.tabId, { type: 'track-selected' });
+});

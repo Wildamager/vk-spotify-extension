@@ -1,0 +1,21 @@
+﻿# Secrets / local config
+config.local.js
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Packaging / build output
+*.zip
+build/
+dist/
+*.crx
+*.pem
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
