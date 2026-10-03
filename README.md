@@ -4,8 +4,6 @@ Chrome extension that turns a VK audio track into a Spotify link. Right-click a
 track in a VK audio player, choose **«Искать в Spotify»**, and the popup shows the
 matching Spotify track with the option to save it to your library.
 
-<!-- Screenshots: docs/screenshots/vk-to-spotify.png -->
-
 ## Features
 
 - Reads artist and title from the VK audio row that was right-clicked
@@ -45,6 +43,7 @@ any track → **Искать в Spotify**.
 | `config.js` | Spotify client ID, redirect URI and scopes |
 | `popup.html` / `music-script.js` | popup UI: track details and the Save button |
 | `SignIn.html` / `popup-script.js` | first-run sign-in screen |
+| `Icons/` | extension icons declared in `manifest.json` |
 
 The right-click handler sends the selected track to the service worker, which keeps
 it for the current session. Opening the popup asks the service worker to search
